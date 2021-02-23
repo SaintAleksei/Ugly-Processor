@@ -1,0 +1,40 @@
+in
+pop r1
+in
+pop r2
+in
+pop r3
+push r2
+push r2
+mul
+push -4
+push r1
+push r3
+mul
+mul
+add
+fsqrt
+pop r4
+push -1
+push r2
+mul
+push r4
+add
+push 2
+push r1
+mul
+div
+out
+push -1
+push r2
+mul
+push -1
+push r4
+mul
+add
+push 2
+push r1
+mul
+div
+out
+hlt

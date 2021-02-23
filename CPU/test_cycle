@@ -1,0 +1,10 @@
+push 1
+pop r1
+L1:
+push r1
+out
+push 1
+add
+pop r1
+jmp L1
+hlt
