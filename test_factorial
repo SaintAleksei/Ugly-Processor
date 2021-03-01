@@ -1,0 +1,24 @@
+	in
+	pop r1
+	push 1
+	pop r2
+	call func
+	push r2
+	out
+	hlt
+func:
+	push r1	
+	push 1
+	ja continue
+	ret
+continue:
+	push r2
+	push r1
+	mul
+	pop r2
+	push r1
+	push 1
+	sub
+	pop r1
+	call func
+	ret

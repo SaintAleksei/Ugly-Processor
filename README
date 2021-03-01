@@ -1,0 +1,202 @@
+This is simple processor emulator for linux.
+
+If you want to try it, just download all files and type in the terminal (in the directory with the Makefile):
+	
+	$ make project
+
+Maybe you need to install make utility before you do it.
+
+I created some sample programs for this processor. They are written in the special assembler. You can find examples by the "test_*".
+
+Examples:
+	test_factorial - calculates the factorial of a number entered from the keyboard;
+	test_fibonacci - Calculates the Fibonacci number. The number is entered from the keyboard;
+	test_prime     - Checks if a number is prime. 1 - yes, 0 - no.
+
+To run something on the processor, you must translate the assembler program into machine code:
+
+	$ ./asm <filename>
+
+Then you can run processor:
+
+	$ ./cpu <filename.code>
+
+The assembler commands of this processor are described below.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+real and integer:
+	The letter 'r' in the name distinguishes functions for working with real from functions for working with integers.
+
+stack:
+	There are 3 stacks. One is designed to work with integers. Another one is designed to work with real numbers. 
+	The last one designed to store return adres (provides the ability of create functions).
+
+registers:
+	There are 4 integer registers and 4 real registers. Integer registers are r0, r1, r2, r3 and real registers are rr0, rr1, rr2, rr3.
+
+labels:
+	All labels are any words excluding commands. Each label must be followed by a colon. Same labels are illegal instruction.
+
+	Examples:
+		L1:
+		label:
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+push/pushr:
+	This command push number into a stack. Use push to push integer numbers and pushr to push real numbers. You can push numbers from registers.
+
+	Examples:
+		push  33
+		push  r1
+		pushr 37.94
+		pushr rr2
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+pop/popr:
+	This command pop up number from a stack to a register. Popr to pop up real numbers and pop to pop up integer numbers.
+	
+	Examples:
+		pop r1
+		popr rr1
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+add/addr:
+	This command sum two numbers from stack and push result instead of them.
+	
+	Example:
+		pushr 1.5
+		pushr 3.5
+		addr 
+
+		1.5 + 3.5 = 5.0
+
+		This is the same as
+	
+		pushr 5.0
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+sub/subr:
+	This command subtracts two numbers from stack and push result instead of them.
+
+	Example:
+		push 4
+		push 7
+		sub
+
+		4 - 7 = -3
+
+		This is the same as
+
+		push -3
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+mul/mulr:
+	This command multiply two numbers from stack and push result instead of them.
+	
+	Example:
+		push 4
+		push 5
+		mul
+
+		4 * 5 = 20
+	
+		This is the same as
+
+		push 20	
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+div/divr:
+	This command divides two numbers from stack and push result instead of them. For integers, finds the integer part of division.
+	
+	Example:
+		push 16
+		push 3
+		div
+
+		16 / 3 = 5 + 1 / 3
+	
+		This is the same as
+
+		push 5
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+fsqrt:
+	This command finds square root of the real number and push result instead of them. Works only with real numbers.
+
+	Example:
+		pushr 16
+		fsqrt
+
+		16 = 4 ^ 4
+
+		This is the same as
+
+		pushr r
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+in/inr/get
+	In and inr are read one number from stdin. And get reads one character from stdin.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+out/outr/put
+	Out and outr are write one number to stdout. And put write one character to stdout.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+rti/itr:
+	These commands are designed to convert integers to real numbers and vice versa. rti is "real to integer" and itr is "integer to real".
+	Both commands are pop up number from one stack and push in another.
+
+	Example:
+		pushr 15.4
+		rti	
+
+		15.4 is about 15
+	
+		This is the same as
+
+		push 15
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+jmp/je/jne/ja/jae/jb/jbe:
+	This commands are designed to navigate trought the code in runtime. 
+	Any of these commands must be accompanied by a label to which the jump is made.
+	Jmp is usual jump. Others are сonditional jumps. They are pop 2 numbers from the stack with integers and compare them:
+		je  the same as ==;
+		jne the same as !=;
+		ja  the same as >;
+		jae the same as >=;
+		jb  the same as <;
+		jbe the same as <=.
+
+	Examples:
+		LABEL:
+		jmp LABEL	
+		---------
+		LABEL:
+		push 1
+		push 2
+		jb LABEL		
+	
+		1 < 2 and this is an endless cycle
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+call/ret:
+	This commands are designed to work with functions. call calls the function and ret returns from function.
+	call and ret are special types of jump, but do not use any other commands instead of call and ret. And do not use call without ret.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+I am sorry for my english language :( Unfotunately, I am very often sleep away my english lessons, because at night I prefer create programs.

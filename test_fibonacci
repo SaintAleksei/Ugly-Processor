@@ -1,0 +1,30 @@
+	in 
+	pop r0
+	push 3
+	pop r1
+	push 1
+	pop r2
+	push 1
+	pop r3
+	call func
+	push r3
+	out
+	hlt
+func:
+	push r0
+	push r1
+	jae next
+	ret
+next:
+	push r2
+	push r3
+	add 	
+	push r3
+	pop r2
+	pop r3
+	push 1
+	push r1
+	add
+	pop r1
+	call func
+	ret

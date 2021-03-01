@@ -1,0 +1,41 @@
+	in
+	pop r0
+	push r0
+	push 1
+	je NOPRIME
+	push r0
+	push 2
+	je PRIME
+	push r0
+	push 3
+	je PRIME
+	push 2
+	pop r1
+NEXT:
+	push r0
+	push r1
+	push r1
+	mul
+	jb PRIME	
+	push r0
+	push r1
+	div
+	push r1 
+	mul
+	push r0
+	sub
+	push 0
+	je NOPRIME
+	push r1
+	push 1
+	add
+	pop r1
+	jmp NEXT
+PRIME:
+	push 1
+	out
+	hlt
+NOPRIME:
+	push 0
+	out
+	hlt
