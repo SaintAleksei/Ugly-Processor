@@ -19,11 +19,23 @@ int main (int argc, char *argv[])
 
 	cpu_t cpu = {};
 
-	CPULoad (stream, &cpu);
+	int ret = CPULoad (stream, &cpu);
+	
+	if (ret)
+	{
+		fprintf (stderr, "CPULoad returned %d\n", ret);
+		return 1;
+	}
 
 	fclose (stream);
 
-	CPURun (&cpu);
+	ret = CPURun (&cpu);
+
+	if (ret)
+	{
+		fprintf (stderr, "CPURun returned %d\n", ret);
+		return 1;
+	}
 
 	return 0;
 }
