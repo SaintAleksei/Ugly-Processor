@@ -1,12 +1,11 @@
-project:
-	gcc assembler/main.c -Wall -Wextra -o asm
-	gcc CPU/main.c CPU/CPU.c stack/stack.c -Wall -Wextra -lm -o cpu
-
 asm:
-	gcc assembler/main.c -Wall -Wextra -o asm
+	gcc assembler/main.c assembler/assembler.c dynarr/dynarr.c tools/tools.c -Wall -Wextra -o asm
 
-cpu:
-	gcc CPU/main.c CPU/CPU.c stack/stack.c -Wall -Wextra -lm -o cpu
+proc:
+	gcc processor/main.c processor/processor.c stack/stack.c tools/tools.c ram/ram.c -Wall -Wextra -lm -o proc
+
+bdump:
+	gcc bindump/main.c bindump/bindump.c tools/tools.c -Wall -Wextra -o bdump
 
 clean:
-	rm *.code
+	rm *.bin *.dump *.log *.o

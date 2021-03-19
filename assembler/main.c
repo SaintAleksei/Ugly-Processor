@@ -1,352 +1,187 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include "../commands.h"
+#include "assembler.h"
 
-#define MAX_NAME_SIZE 64
+#define TYPE cmd_t 
+#include "../dynarr/dynarr.h"
+#undef TYPE
 
-typedef struct label
-{
-	char name[MAX_NAME_SIZE];
-	cmd_t adres;
-} label_t;
+#define TYPE label_t
+#include "../dynarr/dynarr.h"
+#undef TYPE
 
 int main (int argc, char *argv[])
 {
 	if (argc < 2)
 	{
-		fprintf (stderr, "Usage: %s <filename>\n", argv[0]);
+		fprintf (stderr, "%s: Usage: %s <name of file>\n", argv[0], argv[0]);
 		return -1;
 	}	
 
-	FILE *stream = NULL;
-		
-	if (!(stream = fopen (argv[1], "r") ) )
+	FILE *stream = fopen (argv[1], "r");
+
+	if (!stream)
 	{
-		fprintf (stderr, "%s: Error: Can't open file \"%s\"\n"
-						 "Usage: %s <filename>\n", argv[0], argv[1], argv[0]);
+		fprintf (stderr, "%s: Can't open file '%s': ", argv[0], argv[1]);	
 		return -1;
 	}
-
-	size_t labels_capacity = 1024;
-	size_t labels_count    = 0;
-	label_t *labels        = calloc (labels_capacity, 1);
-
-	size_t fixup_capacity  = 1024;
-	size_t fixup_count     = 0;
-	label_t *fixup         = calloc (fixup_capacity, 1);
-
-	size_t inst_capacity   = 1024;
-	size_t pc              = 0;
-	cmd_t *inst            = calloc (inst_capacity, 1);
-
-	int  line                  = 0;
-	char word[MAX_NAME_SIZE]   = "";
-	char error_flag            = 0;
-
-	while (fscanf (stream, "%s", word) == 1)
-	{
-		char jmp_flag = 0;
-
-		line++;
 	
-		if (strcmp (word, "push") == 0)
-		{
-			cmd_t reg = 0;
-			fscanf (stream, "%s", word);
+	cmd_t_arr inst     = {};
+	label_t_arr labels = {};
+	label_t_arr fixups = {};
 
-			if (sscanf (word, "r%llu", &reg) == 1)
-			{
-				if (reg >= INT_REGISTERS)
-				{
-					error_flag = 1;
-					break;
-				}
+	arr_create (inst,   sizeof (cmd_t)   );
+	arr_create (labels, sizeof (label_t) );
+	arr_create (fixups, sizeof (label_t) );
 
-				inst[pc++] = CMD_PUSH_REG;
-				inst[pc++] = reg;
-			}	
-			else if (sscanf (word, "%lld", (int_t *) &reg) == 1)
-			{
-				inst[pc++] = CMD_PUSH_CONST;
-				inst[pc++] = reg;	
-			}
-			else 
-			{
-				error_flag = 1;
-				break;
-			}	
-		}
-		else if (strcmp (word, "pushr") == 0)
-		{
-			cmd_t reg = 0;
-			fscanf (stream, "%s", word);
+	char   buffer[MAX_BUFFER_SIZE] = "";
+	char   label[MAX_LABEL_SIZE]   = "";
+	size_t line                    = 0;
+	cmd_t  cmd                     = 0;
+	char   iserror             	   = 0;
+	char   islabel                 = 0;
 
-			if (sscanf (word, "rr%llu", &reg) == 1)
-			{
-				if (reg >= REAL_REGISTERS)
-				{
-					error_flag = 1;
-					break;
-				}
-
-				inst[pc++] = CMD_PUSHR_REG;
-				inst[pc++] = reg;
-			}	
-			else if (sscanf (word, "%lg", (real_t *) &reg) == 1)
-			{
-				inst[pc++] = CMD_PUSHR_CONST;
-				inst[pc++] = reg;	
-			}
-			else 
-			{
-				error_flag = 1;
-				break;
-			}	
-		}
-		else if (strcmp (word, "pop") == 0)
-		{
-			cmd_t reg = 0;
-			fscanf (stream, "%s", word);
-
-			if (sscanf (word, "r%llu", &reg) == 1)
-			{
-				if (reg > INT_REGISTERS)
-				{
-					error_flag = 1;
-					break;
-				}
-
-				inst[pc++] = CMD_POP;
-				inst[pc++] = reg;
-			}	
-			else
-			{
-				error_flag = 1;
-				break;
-			}
-		}
-		else if (strcmp (word, "popr") == 0)
-		{
-			cmd_t reg = 0;
-			fscanf (stream, "%s", word);
-
-			if (sscanf (word, "rr%llu", &reg) == 1)
-			{
-				if (reg > REAL_REGISTERS)
-				{
-					error_flag = 1;
-					break;
-				}
-
-				inst[pc++] = CMD_POPR;
-				inst[pc++] = reg;
-			}	
-			else
-			{
-				error_flag = 1;
-				break;
-			}
-		}
-		else if (strcmp (word, "add") == 0)
-			inst[pc++] = CMD_ADD;
-		else if (strcmp (word, "addr") == 0)
-			inst[pc++] = CMD_ADDR;
-		else if (strcmp (word, "sub") == 0)
-			inst[pc++] = CMD_SUB;
-		else if (strcmp (word, "subr") == 0)
-			inst[pc++] = CMD_SUBR;
-		else if (strcmp (word, "mul") == 0)
-			inst[pc++] = CMD_MUL;
-		else if (strcmp (word, "mulr") == 0)
-			inst[pc++] = CMD_MULR;
-		else if (strcmp (word, "div") == 0)
-			inst[pc++] = CMD_DIV;
-		else if (strcmp (word, "divr") == 0)
-			inst[pc++] = CMD_DIVR;
-		else if (strcmp (word, "fsqrt") == 0)
-			inst[pc++] = CMD_FSQRT;
-		else if (strcmp (word, "rti") == 0)
-			inst[pc++] = CMD_RTI;
-		else if (strcmp (word, "itr") == 0)
-			inst[pc++] = CMD_ITR;
-		else if (strcmp (word, "in") == 0)
-			inst[pc++] = CMD_IN;
-		else if (strcmp (word, "inr") == 0)
-			inst[pc++] = CMD_INR;
-		else if (strcmp (word, "get") == 0)
-			inst[pc++] = CMD_GET;
-		else if (strcmp (word, "out") == 0)
-			inst[pc++] = CMD_OUT;
-		else if (strcmp (word, "outr") == 0)
-			inst[pc++] = CMD_OUTR;
-		else if (strcmp (word, "put") == 0)
-			inst[pc++] = CMD_PUT;
-		else if (strcmp (word, "hlt") == 0)
-			inst[pc++] = CMD_HLT;
-		else if (strcmp (word, "nop") == 0)
-			inst[pc++] = CMD_NOP;
-		else if (strcmp (word, "ret") == 0)
-			inst[pc++] = CMD_RET;
-		else if (strcmp (word, "call") == 0)
-		{
-			inst[pc++] = CMD_CALL;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "jmp") == 0)	
-		{
-			inst[pc++] = CMD_JMP;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "je") == 0 )
-		{
-			inst[pc++] = CMD_JE;	
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "jne") == 0)
-		{
-			inst[pc++] = CMD_JNE;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "jb") == 0)
-		{
-			inst[pc++] = CMD_JB;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "jbe") == 0)
-		{
-			inst[pc++] = CMD_JBE;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "ja") == 0)
-		{
-			inst[pc++] = CMD_JA;
-			jmp_flag = 1;
-		}
-		else if (strcmp (word, "jae") == 0)
-		{
-			inst[pc++] = CMD_JAE;
-			jmp_flag = 1;
-		}
-		else if (word[strlen (word) - 1] == ':')	
-		{
-			word[strlen (word) - 1] = 0;
-			
-			for (size_t i = 0; !error_flag && i < labels_count; i++)
-				if (strcmp (word, labels[i].name) == 0)
-					error_flag = 1;
-
-			if (error_flag)
-				break;
-			else
-			{
-				labels[labels_count].adres = pc;
-				strncpy (labels[labels_count].name, word, MAX_NAME_SIZE);
-				labels_count++;
-			}	
-		}
-		else
-		{
-			error_flag = 1;
-			break;
-		}	
-
-		if (jmp_flag)
-		{
-			if (fscanf (stream, "%s", word) != 1)
-			{
-				error_flag = 1;	
-				break;
-			}
-
-			char found = 0;
-			for (size_t i = 0; !found && i < labels_count; i++)
-				if (strcmp (word, labels[i].name) == 0)
-				{
-					found = 1;
-					inst[pc] = labels[i].adres;
-				}
-
-			if (!found) 
-			{
-				fixup[fixup_count].adres = pc;
-				strncpy (fixup[fixup_count].name, word, MAX_NAME_SIZE);
-				fixup_count++;
-			}
-
-			pc++;
-		}
-
-		if ( (pc + 2) * sizeof (cmd_t) >= inst_capacity)
-		{
-			inst_capacity *= 2;
-
-			inst = realloc (inst, inst_capacity);
-
-			for (size_t i = pc * sizeof (cmd_t); i < inst_capacity; i++)
-				*( (char *) inst + i) = 0;
-		} 
-
-		if ( (labels_count + 1) * sizeof (label_t) >= labels_capacity)
-		{
-			labels_capacity *= 2;
-			
-			labels = realloc (labels, labels_capacity);	
-
-			for (size_t i = labels_count * sizeof (label_t); i < labels_capacity; i++)
-				*( (char *) labels + i) = 0;
-		}
-
-		if ( (fixup_count + 1) * sizeof (label_t)  >= fixup_capacity)
-		{
-			fixup_capacity *= 2;
-			
-			fixup = realloc (fixup, fixup_capacity * sizeof (label_t) );	
-
-			for (size_t i = fixup_count * sizeof (label_t); i < fixup_capacity; i++)
-				*( (char *) fixup + i) = 0;
-		}
-	}
-
-	for (size_t i = 0; i < fixup_count; i++)
+	while ( !iserror && fgets (buffer, MAX_BUFFER_SIZE, stream) )
 	{
-		char found = 0;
-		for (size_t j = 0; !found && j < labels_count; j++)
-			if (strcmp (labels[j].name, fixup[i].name) == 0)
-			{
-				found = 1;
-				inst[fixup[i].adres] = labels[j].adres;
-			}
+		line++;
+		*label  = 0;
+		islabel = 0;
 
-		if (!found)
+		if (get_label (label, buffer) == 0)
 		{
-			error_flag = 1;
-			break;
+			islabel = 1;
+
+			if (find_label (labels.arr, labels.counter, label) == CMD_ERROR)	
+			{
+				labels.arr[labels.counter].addr = inst.counter;		
+				strncpy (labels.arr[labels.counter].name, label, MAX_LABEL_SIZE);
+				labels.counter++;	
+			}
+			else
+				iserror = 1;
 		}
+			
+		cmd = get_cmd (buffer);	
+
+		if (cmd != CMD_ERROR)
+		{
+			inst.arr[inst.counter] = cmd;
+			inst.counter++;
+		}
+		else if (!islabel)
+			iserror = 1;
+
+		if (!islabel && !iserror && cmd & MASK_PUSH)
+		{
+			cmd = get_push_arg (buffer, cmd);
+
+			if (cmd != CMD_ERROR)
+			{
+				inst.arr[inst.counter] = cmd;
+				inst.counter++;
+			}
+			else
+				iserror = 1;
+		}
+		else if (!islabel && !iserror && cmd & MASK_POP)
+		{
+			cmd = get_pop_arg (buffer, cmd);
+
+			if (cmd != CMD_ERROR)
+			{
+				inst.arr[inst.counter] = cmd;
+				inst.counter++;
+			}
+			else
+				iserror = 1;
+		}
+		else if (!islabel && !iserror && cmd & MASK_JMP)
+		{
+			if (get_jmp_arg (label, buffer) == 0)	
+			{
+				cmd = find_label (labels.arr, labels.counter, label);
+
+				if (cmd != CMD_ERROR)
+					inst.arr[inst.counter] = cmd;
+				else
+				{
+					inst.arr[inst.counter]          = CMD_ERROR;
+					strncpy (fixups.arr[fixups.counter].name, label, MAX_LABEL_SIZE);
+					fixups.arr[fixups.counter].addr = inst.counter;
+					fixups.arr[fixups.counter].line = line;
+					fixups.counter++;
+				}
+
+				inst.counter++;
+			}
+			else
+				iserror = 1;
+		}
+
+		if ( (inst.counter + 1) * inst.elemsize >= inst.capacity)
+			arr_x2expand (inst);
+
+		if ( (labels.counter + 1) * labels.elemsize >= labels.capacity)
+			arr_x2expand (labels);
+
+		if ( (fixups.counter + 1) * labels.counter >= fixups.capacity)
+			arr_x2expand (fixups);
 	}
+
+	if (iserror)
+	{
+		buffer[strlen(buffer) - 1] = 0;
 		
-	if (error_flag)
-	{
-		fprintf (stderr, "%s: %s (%d): Illegal instruction\n", argv[0], argv[1], line);
+		size_t i = 0;
+		while (isspace (buffer[i]) )
+			i++;
+
+		fprintf (stderr, "@ %s:[ERROR]:%s:%lu: Illegal instruction: '%s'\n", argv[0], argv[1], line, buffer + i);
+
+		fclose (stream);
+		arr_destroy (inst);
+		arr_destroy (labels);
+		arr_destroy (fixups);
+
 		return 1;
 	}
 
+	for (size_t i = 0; i < fixups.counter; i++)
+	{
+		cmd = find_label (labels.arr, labels.counter, fixups.arr[i].name);	
+
+		if (cmd != CMD_ERROR)
+			inst.arr[fixups.arr[i].addr] = cmd;
+		else
+		{
+			fprintf (stderr, "@ %s:[ERROR]:%s:%lu: Unknown label '%s'\n", argv[0], argv[1], fixups.arr[i].line, fixups.arr[i].name);
+
+			fclose (stream);
+			arr_destroy (inst);
+			arr_destroy (labels);
+			arr_destroy (fixups);
+
+			return 2;
+		}
+	}
+
 	fclose (stream);
 
-	char fname[64] = "";
-	if (strchr (argv[1], '.') )
-		*strchr (argv[1], '.') = 0;
-	sprintf (fname, "%s.code", argv[1]);
+	strncpy (buffer, argv[1], MAX_BUFFER_SIZE);
+	change_format (buffer, ".bin");
+	
+	stream = fopen (buffer, "wb");
+	
+	int regs = (REGISTERS > 99) ? 99 : REGISTERS;
+	fprintf (stream, "proc-r%d", regs);
 
-	stream = fopen (fname, "w");
-
-	fwrite (inst, sizeof (cmd_t), pc, stream);
+	if (!stream)
+		fprintf (stderr, "%s: Can't open file '%s'\n", argv[0], argv[1]);
+	else
+		fwrite (inst.arr, sizeof (inst.arr[0]), inst.counter, stream);
 
 	fclose (stream);
+	arr_destroy (inst);	
+	arr_destroy (labels);
+	arr_destroy (fixups);
 
-	free (inst);
-	free (labels);
-	free (fixup);
 	return 0;
 }

@@ -4,6 +4,7 @@
 
 	#include <stdio.h>
 	#include <stdlib.h>
+	#include "../tools/tools.h"
 
 	typedef struct Stack * stack;
 

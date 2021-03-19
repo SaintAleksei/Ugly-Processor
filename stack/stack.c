@@ -2,7 +2,6 @@
 
 #define CANARY 0x6666666666666666ull
 #define POISON 0xFFu
-#define PRIME 997ull
 
 typedef unsigned long long canary_t;
 typedef unsigned long long hash_t;
@@ -23,7 +22,6 @@ struct Stack
 
 int    convert_byte   (char *dst, char c);
 int    convert_nbytes (char *dst, const void *ptr, size_t nbytes);
-hash_t get_hash       (const void *ptr, size_t nbytes);
 
 int __stack_ctor (stack stk, size_t capacity, size_t elemsize)
 {
@@ -265,21 +263,4 @@ int __stack_errcount (stack stk)
 		return -1;
 
 	return stk->errcount;
-}
-
-hash_t get_hash (const void *ptr, size_t nbytes)
-{
-	hash_t result = 0;
-	hash_t pow    = 1;
-
-	for (size_t i = 0; i < nbytes; i++)
-	{
-		hash_t buf = (hash_t) *( (const unsigned char *) (ptr + i) );
-	
-		result += pow * buf;
-		
-		pow *= PRIME;
-	}
-
-	return result;
 }
