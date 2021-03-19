@@ -50,17 +50,15 @@ int proc_load (proc_t *proc, const char *fname)
 
 	free (buffer);
 
-	proc->ip = 0;
+	proc->ip     = 0;
+	proc->dojump = 0;
 		
 	for (size_t i = 0; i < REGISTERS; i++)
-	{
-		proc->int_reg [i] = 0;
-		proc->real_reg[i] = 0;
-	}
+		proc->reg [i] = 0;
 
 	proc->int_stk  = int_t_stack_ctor   (1);
 	proc->real_stk = real_t_stack_ctor  (1);
-	proc->ret_stk  = cmd_t_stack_ctor (1);
+	proc->ret_stk  = cmd_t_stack_ctor   (1);
 
 	proc->status   = PROC_HALTED;
 
@@ -95,88 +93,26 @@ int proc_run (proc_t *proc)
 
 	while (proc->status == PROC_RUNNING && proc->ram->status == RAM_OK)
 	{
-		cmd_t cmd   = 0;
-		char dojump = 1;
-
+		proc->dojump = 0;
+		cmd_t cmd    = 0;
+	
 		ram_read (proc->ram, proc->ip, &cmd);
 
 		if (cmd & MASK_ALU)
-		{
-			if (cmd & MASK_REAL)
-				real_alu (proc, cmd, &dojump);
-			else
-				int_alu (proc, cmd, &dojump);
-		}
+			run_alu (proc, cmd);
 		else if (cmd & MASK_PUSH)
-			push (proc, cmd);
+			do_push (proc, cmd);
 		else if (cmd & MASK_POP)
-			pop  (proc, cmd);
-		else if (!(cmd & MASK_JMP) )
+			do_pop  (proc, cmd);
+		else 
+			do_cmd  (proc, cmd); 
+
+		if (proc->dojump)
 		{
-			real_t real_a = 0;
-			int_t  int_a  = 0;
-			cmd_t  cmd_a  = 0;
+			ram_read (proc->ram, proc->ip, &cmd);
 
-			switch (cmd)
-			{
-				case CMD_RTI:
-					real_t_stack_pop (proc->real_stk, &real_a);
-					int_a = (int_t) real_a;
-					int_t_stack_push (proc->int_stk, int_a);
-					break;
-
-				case CMD_ITR:
-					int_t_stack_pop (proc->int_stk, &int_a);
-					real_a = (real_t) int_a;
-					real_t_stack_push (proc->real_stk, real_a);
-					break;
-
-				case CMD_IN:
-					printf ("#> ");
-					scanf ("%lld", &int_a);
-					int_t_stack_push (proc->int_stk, int_a);
-					break;
-
-				case CMD_INR:
-					printf ("#> ");
-					scanf ("%lg", &real_a);
-					real_t_stack_push (proc->int_stk, real_a);
-					break;
-
-				case CMD_OUT:
-					int_t_stack_pop (proc->int_stk, &int_a);
-					printf ("#> %lld\n", int_a);
-					int_t_stack_push (proc->int_stk, int_a);
-					break;
-
-				case CMD_OUTR:
-					real_t_stack_pop (proc->real_stk, &real_a);
-					printf ("#> %lg\n", real_a);
-					real_t_stack_push (proc->real_stk, real_a);
-					break;
-
-				case CMD_RET:
-					cmd_t_stack_pop (proc->ret_stk, &cmd_a);
-					proc->ip = cmd_a;
-					break;
-
-				case CMD_NOP:
-					break;
-
-				case CMD_HLT:
-					proc->status = PROC_HALTED;
-					break;
-
-				default:
-					proc->status = PROC_ERROR;
-			}
-
-			if (proc->status == PROC_RUNNING && cmd != CMD_RET)
-				proc->ip++;	
+			proc->ip = cmd;
 		}
-
-		if (cmd & MASK_JMP)
-			jmp  (proc, cmd, dojump);
 
 		ram_check (proc->ram);
 	}
@@ -186,15 +122,11 @@ int proc_run (proc_t *proc)
 		ram_error (proc->ram);
 	
 		FILE *log = fopen ("ram.log", "w");
-
 		ram_log (proc->ram, log);
-
 		fclose (log);
 
 		log = fopen ("ram.dump", "w");
-
 		ram_dump (proc->ram, log);
-
 		fclose (log);
 
 		proc->status = PROC_ERROR;
@@ -203,374 +135,507 @@ int proc_run (proc_t *proc)
 	return proc->status;
 }
 
-int real_alu (proc_t *proc, cmd_t cmd, char *dojump)
+int run_alu (proc_t *proc, cmd_t cmd)
 {
-	if (!proc || proc->status != PROC_RUNNING || !dojump)
+	if (!proc)
 		return __LINE__;
 
-	real_t b   = 0;
-	real_t a   = 0;
-	*dojump    = 0;
+	proc->dojump = 0;
 
 	if (cmd == CMD_FSQRT)
 	{
-		real_t_stack_pop  (proc->real_stk, &a);
-		real_t_stack_push (proc->real_stk, sqrt (a) );
-
-		return cmd;
-	}
-
-	real_t_stack_pop  (proc->real_stk, &a);
-	real_t_stack_pop  (proc->real_stk, &b);
-
-	switch (cmd)
-	{
-		case CMD_JER:
-			*dojump = ( (b == a) ? 1 : 0);
-			break;
-
-		case CMD_JNER:
-			*dojump = ( (b != a) ? 1 : 0);
-			break;
-
-		case CMD_JBR:
-			*dojump = ( (b < a) ? 1 : 0);
-			break;
-
-		case CMD_JBER:
-			*dojump = ( (b <= a) ? 1 : 0);
-			break;
-
-		case CMD_JAR:
-			*dojump = ( (b > a) ? 1 : 0);
-			break;
-
-		case CMD_JAER:
-			*dojump = ( (b >= a) ? 1 : 0);
-			break;
-
-		case CMD_ADDR:
-			real_t_stack_push (proc->real_stk, a + b);
-			break;
-
-		case CMD_SUBR: 
-			real_t_stack_push (proc->real_stk, b - a);
-			break;
-
-		case CMD_MULR:
-			real_t_stack_push (proc->real_stk, b * a);
-			break;
-
-		case CMD_DIVR:
-			real_t_stack_push (proc->real_stk, b / a);
-			break;
-
-		default:
-			real_t_stack_push (proc->real_stk, b);
-			real_t_stack_push (proc->real_stk, a);
-
-			proc->status = PROC_ERROR;
+		if (stack_size (proc->real_stk) < 1)
+		{
+			fprintf (stderr, "PROCESSOR: RUN_ALU: [ERROR]: Can't pop value from real stack:\n"
+							 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);
 		
 			return __LINE__;
-	}
+		}
+		else 
+		{
+			real_t a = 0;
+			real_t_stack_pop  (proc->real_stk, &a);
+			real_t_stack_push (proc->real_stk, a); 
+		}
 
-	if (!(cmd & MASK_JMP) )
-		proc->ip++;
-
-	return 0;
-}
-
-int int_alu (proc_t *proc, cmd_t cmd, char *dojump)
-{
-	if (!proc || proc->status != PROC_RUNNING)
-		return __LINE__;
-
-	int_t b    = 0;
-	int_t a    = 0;
-	*dojump    = 0;
-
-	int_t_stack_pop  (proc->int_stk, &a);
-	int_t_stack_pop  (proc->int_stk, &b);
-
-	switch (cmd)
-	{
-		case CMD_JE:
-			*dojump = (b == a) ? 1 : 0;
-			break;
-
-		case CMD_JNE:
-			*dojump = (b != a) ? 1 : 0;
-			break;
-
-		case CMD_JB:
-			*dojump = (b < a) ? 1 : 0;
-			break;
-
-		case CMD_JBE:
-			*dojump = (b <= a) ? 1 : 0;
-			break;
-
-		case CMD_JA:
-			*dojump = (b > a) ? 1 : 0;
-			break;
-
-		case CMD_JAE:
-			*dojump = (b >= a) ? 1 : 0;
-			break;
-
-		case CMD_ADD:
-			int_t_stack_push (proc->int_stk, a + b);
-			break;
-
-		case CMD_SUB: 
-			int_t_stack_push (proc->int_stk, b - a);
-			break;
-
-		case CMD_MUL:
-			int_t_stack_push (proc->int_stk, b * a);
-			break;
-
-		case CMD_DIV:
-			int_t_stack_push (proc->int_stk, b / a);
-			break;
-
-		default:
-			int_t_stack_push (proc->int_stk, b);
-			int_t_stack_push (proc->int_stk, a);
-
-			proc->status = PROC_ERROR;
-		
-			return __LINE__;
+		return 0;
 	}
 	
-	if (!(cmd & MASK_JMP) )
-		proc->ip++;
-
-	return 0;;
-}
-
-int jmp (proc_t *proc, cmd_t cmd, char dojump)
-{
-	if (!proc || !(proc->ram) || proc->status != PROC_RUNNING)
-		return __LINE__;
+	int iserror = 0;
 
 	if (cmd & MASK_REAL)
-		cmd ^= MASK_REAL;
-
-	switch (cmd)
 	{
-		case CMD_JMP:
-		case CMD_JE:
-		case CMD_JNE:
-		case CMD_JB:
-		case CMD_JA:
-		case CMD_JAE:
-		case CMD_CALL:
-			break;
+		real_t a = 0;
+		real_t b = 0;
 
-		default:
-			proc->status = PROC_ERROR;
-			
+		if (stack_size (proc->real_stk) < 2)
+		{
+			fprintf (stderr, "PROCESSOR: RUN_ALU: [ERROR]: Can't pop value from real stack:\n"
+							 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);
+
 			return __LINE__;
+		}
+		else
+		{
+			real_t_stack_pop (proc->real_stk, &a);
+			real_t_stack_pop (proc->real_stk, &b);
+		}
+
+		if (cmd & MASK_JMP)
+			switch (cmd)
+			{
+				case CMD_JER:
+					if (a == b)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JNER:
+					if (a != b)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JLR:
+					if (b < a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JLER:
+					if (b <= a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JGR:
+					if (b > a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JGER:
+					if (b >= a)
+						proc->dojump = 1;
+					break;
+
+				default:
+					iserror = __LINE__;
+			}
+		else
+			switch (cmd)
+			{
+				case CMD_ADDR:
+					real_t_stack_push (proc->real_stk, a + b);
+					break;
+
+				case CMD_SUBR:
+					real_t_stack_push (proc->real_stk, b - a);
+					break;
+
+				case CMD_MULR:
+					real_t_stack_push (proc->real_stk, b * a);
+					break;
+
+				case CMD_DIVR:
+					real_t_stack_push (proc->real_stk, b / a);
+					break;
+
+				default:
+					iserror = __LINE__;
+			}
+
+		if (iserror)
+		{
+			real_t_stack_push (proc->real_stk, b);
+			real_t_stack_push (proc->real_stk, a);
+		
+			proc->status = PROC_ERROR;
+
+			return iserror;
+		}
+	}
+	else 
+	{
+		int_t  a = 0;
+		int_t  b = 0;
+
+		if (stack_size (proc->int_stk) < 2)
+		{
+			fprintf (stderr, "PROCESSOR: RUN_ALU: [ERROR]: Can't pop value from int stack:\n"
+							 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);
+
+			return __LINE__;
+		}
+		else
+		{
+			int_t_stack_pop (proc->int_stk, &a);
+			int_t_stack_pop (proc->int_stk, &b);
+		}
+
+		if (cmd & MASK_JMP)
+			switch (cmd)
+			{
+				case CMD_JE:
+					if (a == b)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JNE:
+					if (a != b)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JL:
+					if (b < a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JLE:
+					if (b <= a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JG:
+					if (b > a)
+						proc->dojump = 1;
+					break;
+
+				case CMD_JGE:
+					if (b >= a)
+						proc->dojump = 1;
+					break;
+
+				default:
+					iserror = __LINE__;
+			}
+		else
+			switch (cmd)
+			{
+				case CMD_ADD:
+					int_t_stack_push (proc->int_stk, a + b);
+					break;
+
+				case CMD_SUB:
+					int_t_stack_push (proc->int_stk, b - a);
+					break;
+
+				case CMD_MUL:
+					int_t_stack_push (proc->int_stk, b * a);
+					break;
+
+				case CMD_DIV:
+					int_t_stack_push (proc->int_stk, b / a);
+					break;
+
+				default:
+					iserror = __LINE__;
+			}
+
+		if (iserror)
+		{
+			int_t_stack_push (proc->int_stk, b);
+			int_t_stack_push (proc->int_stk, a);
+		
+			proc->status = PROC_ERROR;
+
+			return iserror;
+		}
 	}
 
-	if (!dojump)
+	if (!iserror)
+	{
+		proc->ip++;
+
+		if (!(proc->dojump) && cmd & MASK_JMP)
+			proc->ip++;
+
+		return 0;
+	}
+	else
+		return __LINE__;
+}
+
+int do_push (proc_t *proc, cmd_t cmd)
+{
+	if (!proc)
+		return __LINE__;
+
+	int iserror = 0;
+	
+	cmd_t arg = 0;
+	ram_read (proc->ram, proc->ip + 1, &arg);
+
+	if (cmd & MASK_REAL)
+		switch (cmd)
+		{
+			case CMD_PUSHR_C:
+				real_t_stack_push (proc->real_stk, *( (real_t *) &arg ) );
+				break;
+
+			case CMD_PUSHR_R:
+				if (arg < REGISTERS)
+					real_t_stack_push (proc->real_stk, *( (real_t *) (proc->reg + arg) ) );
+				else
+					iserror = __LINE__;
+				break;
+
+			case CMD_PUSHR_RAM_C:
+				ram_read (proc->ram, arg, &arg);
+				real_t_stack_push (proc->real_stk, *( (real_t *) &arg) );
+				break;
+
+			case CMD_PUSHR_RAM_R:
+				if (arg < REGISTERS)
+				{
+					ram_read (proc->ram, proc->reg[arg], &arg);
+					real_t_stack_push (proc->real_stk, *( (real_t *) &arg) );
+				}
+				else
+					iserror = __LINE__;
+				break;
+
+			default:
+				iserror = __LINE__;
+		}	
+	else
+	{
+		switch (cmd)
+		{
+			case CMD_PUSH_C:
+				int_t_stack_push (proc->int_stk, *( (int_t *) &arg ) );
+				break;
+
+			case CMD_PUSH_R:
+				if (arg < REGISTERS)
+					int_t_stack_push (proc->int_stk, *( (int_t *) (proc->reg + arg) ) );
+				else
+					iserror = __LINE__;
+				break;
+
+			case CMD_PUSH_RAM_C:
+				ram_read (proc->ram, arg, &arg);
+				int_t_stack_push (proc->int_stk, *( (int_t *) &arg) );
+				break;
+
+			case CMD_PUSH_RAM_R:
+				if (arg < REGISTERS)
+				{
+					ram_read (proc->ram, proc->reg[arg], &arg);
+					int_t_stack_push (proc->int_stk, *( (int_t *) &arg) );
+				}
+				else
+					iserror = __LINE__;
+				break;
+
+			default:
+				iserror = __LINE__;
+		}	
+	}
+
+	if (iserror)
+	{
+		proc->status = PROC_ERROR;
+
+		return iserror;
+	}
+	else
 	{
 		proc->ip += 2;
 
 		return 0;
 	}
-
-	if (cmd == CMD_CALL)
-		cmd_t_stack_push (proc->ret_stk, proc->ip + 2);
-
-	ram_read (proc->ram, proc->ip + 1, &proc->ip);
-
-	return 0;
 }
 
-int push (proc_t *proc, cmd_t cmd)
+int do_pop  (proc_t *proc, cmd_t cmd)
 {
-	if (!proc || proc->status != PROC_RUNNING)
+	if (!proc)
 		return __LINE__;
 
-	cmd_t arg   = 0;
-	cmd_t value = 0;
-
+	int iserror = 0;
+	
+	cmd_t arg    = 0;
 	ram_read (proc->ram, proc->ip + 1, &arg);
 
 	if (cmd & MASK_REAL)
-		switch (cmd) 
-		{
-			case CMD_PUSHR_C:
-				real_t_stack_push (proc->real_stk, *( (real_t *) &arg) );
-				break;
+	{
+		real_t a = 0;
 
-			case CMD_PUSHR_R:
-				if (arg < REGISTERS)
-					real_t_stack_push (proc->real_stk, proc->real_reg[arg]);
-				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}
-				break;
-
-			case CMD_PUSHR_RAM_C:
-				ram_read (proc->ram, arg, &value);
-				real_t_stack_push (proc->real_stk, *( (real_t *) &value) );
-				break;
-				
-			case CMD_PUSHR_RAM_R:
-				if (arg < REGISTERS)
-					ram_read (proc->ram, proc->int_reg[arg], &value);
-				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}
-
-				real_t_stack_push (proc->real_stk, *( (real_t *) &value) );
-				break;
-
-			default:
-				proc->status = PROC_ERROR;
-
-				return __LINE__;
-		}
-	else
-		switch (cmd)	
-		{
-			case CMD_PUSH_C:
-				int_t_stack_push (proc->int_stk, *( (int_t *) &arg) );
-				break;
-
-			case CMD_PUSH_R:
-				if (arg < REGISTERS)
-					int_t_stack_push (proc->int_stk, proc->int_reg[arg]);
-				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}
-				break;
-
-			case CMD_PUSH_RAM_C:
-				ram_read (proc->ram, arg, &value);
-				int_t_stack_push (proc->int_stk, *( (int_t *) &value) );
-				break;
-				
-			case CMD_PUSH_RAM_R:
-				if (arg < REGISTERS)
-					ram_read (proc->ram, proc->int_reg[arg], &value);
-				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}
-
-				int_t_stack_push (proc->int_stk, *( (int_t *) &value) );
-				break;
-
-			default:
-				proc->status = PROC_ERROR;
-
-				return __LINE__;
-		}
-
-	proc->ip += 2;
-
-	return cmd;
-}
-
-int pop (proc_t *proc, cmd_t cmd)
-{
-	if (!proc || !(proc->ram) || proc->status != PROC_RUNNING)
-		return __LINE__;
-
-	cmd_t arg   = 0;
-	cmd_t value = 0;
-
-	ram_read (proc->ram, proc->ip + 1, &arg);
-
-	if (cmd & MASK_REAL)
 		switch (cmd)
 		{
 			case CMD_POPR:
-				if (arg < REGISTERS)	
-					real_t_stack_pop (proc->real_stk, proc->real_reg + arg);
+				if (arg < REGISTERS)
+					real_t_stack_pop (proc->real_stk, (real_t *) (proc->reg + arg) );
 				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}	
+					iserror = __LINE__;
 				break;
 
 			case CMD_POPR_RAM_C:
-				real_t_stack_pop (proc->real_stk, (real_t *) &value);
-				ram_write (proc->ram, arg, value);
+				real_t_stack_pop (proc->real_stk, &a);
+				ram_write (proc->ram, arg, *( (cmd_t *) &a) );
 				break;
 
 			case CMD_POPR_RAM_R:
-				if (arg >= REGISTERS)
+				if (arg < REGISTERS)
 				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
+					real_t_stack_pop (proc->real_stk, &a);
+					ram_write (proc->ram, proc->reg[arg], *( (cmd_t *) &a) );
 				}
-
-				real_t_stack_pop (proc->real_stk, (real_t *) &value);
-				ram_write (proc->ram, proc->int_reg[arg], value);
+				else
+					iserror = __LINE__;
 				break;
 
 			default:
-				proc->status = PROC_ERROR;
-
-				return __LINE__;
+				iserror = __LINE__;
 		}
+	}
 	else
+	{
+		int_t a = 0;
+
 		switch (cmd)
 		{
 			case CMD_POP:
-				if (arg <= REGISTERS)	
-					int_t_stack_pop (proc->int_stk, proc->int_reg + arg);
+				if (arg < REGISTERS)
+					int_t_stack_pop (proc->int_stk, (int_t *) (proc->reg + arg) );
 				else
-				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
-				}	
+					iserror = __LINE__;
 				break;
 
 			case CMD_POP_RAM_C:
-				int_t_stack_pop (proc->int_stk, (int_t *) &value);
-				ram_write (proc->ram, arg, value);
+				int_t_stack_pop (proc->int_stk, &a);
+				ram_write (proc->ram, arg, *( (cmd_t *) &a) );
 				break;
 
 			case CMD_POP_RAM_R:
-				if (arg >= REGISTERS)
+				if (arg < REGISTERS)
 				{
-					proc->status = PROC_ERROR;
-
-					return __LINE__;
+					int_t_stack_pop (proc->int_stk, &a);
+					ram_write (proc->ram, proc->reg[arg], *( (cmd_t *) &a) );
 				}
-
-				int_t_stack_pop (proc->int_stk, (int_t *) &value);
-				ram_write (proc->ram, proc->int_reg[arg], value);
+				else
+					iserror = __LINE__;
 				break;
 
 			default:
-				proc->status = PROC_ERROR;
-
-				return __LINE__;
+				iserror = __LINE__;
 		}
+	}
 
-	proc->ip += 2;
+	if (iserror)
+	{
+		proc->status = PROC_ERROR;
 
-	return 0;
+		return iserror;
+	}
+	else
+	{
+		proc->ip += 2;
+
+		return 0;
+	}
+}
+
+int do_cmd  (proc_t *proc, cmd_t cmd)
+{
+	if (!proc)
+		return __LINE__;
+
+	int iserror  = 0;
+	cmd_t buffer = 0;
+
+	switch (cmd)
+	{
+		case CMD_JMP:
+			proc->dojump = 1;
+
+			proc->ip++;
+			break;
+
+		case CMD_CALL:
+			proc->dojump = 1;
+			cmd_t_stack_push (proc->ret_stk, proc->ip + 2);
+
+			proc->ip++;
+			break;
+
+		case CMD_RET:
+			if (stack_size (proc->ret_stk) == 0)
+			{
+				fprintf (stderr, "PROCESSOR: DO_CMD: [ERROR]: Can't pop value from ret stack:\n"
+						    	 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);			
+			
+				iserror = __LINE__;
+			}
+			else
+			{
+				cmd_t_stack_pop (proc->ret_stk, &buffer);
+				proc->ip = buffer;
+			}
+			break;
+	
+		case CMD_IN:
+			printf ("#> ");
+			scanf  ("%lld", (int_t *) &buffer);
+			int_t_stack_push (proc->int_stk, *( (int_t *) &buffer) );
+			
+			proc->ip++;
+			break;
+
+		case CMD_INR:
+			printf ("#> ");
+			scanf  ("%lg", (real_t *) &buffer);
+			real_t_stack_push (proc->real_stk, *( (real_t *) &buffer) );
+
+			proc->ip++;
+			break;
+
+		case CMD_OUT:	
+			if (stack_size (proc->int_stk) == 0)
+			{
+				fprintf (stderr, "PROCESSOR: DO_CMD: [ERROR]: Can't pop value from int stack:\n"
+						    	 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);			
+				iserror = __LINE__;
+			}
+			else
+			{
+				int_t_stack_pop (proc->int_stk, (int_t *) &buffer);
+				printf ("@> %lld\n", *( (int_t *) &buffer) );
+				int_t_stack_push (proc->int_stk, *( (int_t *) &buffer) );
+
+				proc->ip++;
+			}
+			break;
+
+		case CMD_OUTR:
+			if (stack_size (proc->real_stk) == 0)
+			{
+				fprintf (stderr, "PROCESSOR: DO_CMD: [ERROR]: Can't pop value from real stack:\n"
+						    	 "\tip = 0x%04llx; cmd = 0x%016llx;\n", proc->ip, cmd);			
+				iserror = __LINE__;
+			}
+			else
+			{
+				real_t_stack_pop (proc->real_stk, (real_t *) &buffer);
+				printf ("@> %lg\n", *( (real_t *) &buffer) );
+				real_t_stack_push (proc->real_stk, *( (real_t *) &buffer) );
+
+				proc->ip++;
+			}
+			break;
+
+		case CMD_NOP:
+			proc->ip++;
+			break;
+
+		case CMD_HLT:
+			proc->status = PROC_HALTED;
+			break;
+
+		default:
+			iserror = __LINE__; }
+	
+	if (iserror)
+	{
+		proc->status = PROC_ERROR;
+
+		return iserror;
+	}
+	else
+		return 0;
 }

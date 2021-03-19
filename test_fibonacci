@@ -13,7 +13,7 @@
 func:
 	push r0
 	push r1
-	jae next
+	jge next
 	ret
 next:
 	push r2

@@ -66,18 +66,10 @@ cmd_t get_cmd (const char *str)
 		cmd |= CMD_DIV;
 	else if (strcmp (word, "fsqrt") == 0)
 		cmd =  CMD_FSQRT;
-	else if (strcmp (word, "rti"  ) == 0)
-		cmd =  CMD_RTI;
-	else if (strcmp (word, "itr"  ) == 0)	
-		cmd =  CMD_ITR;
 	else if (strcmp (word, "in"   ) == 0)
 		cmd |= CMD_IN;
-	/*else if (strcmp (word, "get"  ) == 0)	
-		cmd =  CMD_GET; */
 	else if (strcmp (word, "out"  ) == 0)
 		cmd |= CMD_OUT;
-	/*else if (strcmp (word, "put"  ) == 0)
-		cmd =  CMD_PUT; */
 	else if (strcmp (word, "call" ) == 0)
 		cmd =  CMD_CALL;
 	else if (strcmp (word, "ret"  ) == 0)
@@ -98,16 +90,11 @@ cmd_t get_push_arg (const char *str, cmd_t cmd)
 		return CMD_ERROR;
 
 	char word[MAX_CMD_SIZE] = "";
-	
+
 	switch (cmd)
 	{
 		case CMD_PUSH_C:
 			if (sscanf (str, "%s %lld", word, (int_t *) &cmd) != 2)
-				return CMD_ERROR;
-			break;
-
-		case CMD_PUSH_R:
-			if (sscanf (str, "%s r%llu", word, &cmd) != 2 || cmd >= REGISTERS)
 				return CMD_ERROR;
 			break;
 
@@ -116,8 +103,9 @@ cmd_t get_push_arg (const char *str, cmd_t cmd)
 				return CMD_ERROR;
 			break;
 
+		case CMD_PUSH_R:
 		case CMD_PUSHR_R:
-			if (sscanf (str, "%s rr%llu", word, &cmd) != 2 || cmd >= REGISTERS)
+			if (sscanf (str, "%s r%llu", word, &cmd) != 2 || cmd >= REGISTERS)
 				return CMD_ERROR;
 			break;
 
@@ -150,12 +138,8 @@ cmd_t get_pop_arg (const char *str, cmd_t cmd)
 	switch (cmd)
 	{
 		case CMD_POP:
-			if (sscanf (str, "%s r%llu", word, &cmd) != 2 || cmd >= REGISTERS)
-				return CMD_ERROR;
-			break;
-
 		case CMD_POPR:
-			if (sscanf (str, "%s rr%llu", word, &cmd) != 2 || cmd >= REGISTERS)
+			if (sscanf (str, "%s r%llu", word, &cmd) != 2 || cmd >= REGISTERS)
 				return CMD_ERROR;
 			break;
 
@@ -243,18 +227,18 @@ cmd_t jmp (const char *word, cmd_t cmd)
 					cmd |= CMD_JNE;
 				break;
 
-			case 'a':
+			case 'g':
 				if (word[2] == 0)
-					cmd |= CMD_JA;
+					cmd |= CMD_JG;
 				else if (word[2] == 'e' && word[3] == 0)
-					cmd |= CMD_JAE;
+					cmd |= CMD_JGE;
 				break;
 
-			case 'b':	
+			case 'l':	
 				if (word[2] == 0)
-					cmd |= CMD_JB;
+					cmd |= CMD_JL;
 				else if (word[2] == 'e' && word[3] == 0)
-					cmd |= CMD_JBE;
+					cmd |= CMD_JLE;
 				break;
 
 			default:

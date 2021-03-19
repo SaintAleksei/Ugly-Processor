@@ -9,9 +9,7 @@ enum MASKS
 	MASK_POP  = 0x0200, /* 00000010 00000000 */ 
 	MASK_JMP  = 0x0400, /* 00000100 00000000 */
 };
-
-enum COMMANDS
-{
+enum COMMANDS {
 	CMD_ERROR        = 0xFFFF,                         	/* 11111111 11111111 */
 	CMD_HLT          = 0x0000,                         	/* 00000000 00000000 */
 	CMD_PUSH_C       = MASK_PUSH | 0x0001, 				/* 00000001 00000001 */	
@@ -29,27 +27,23 @@ enum COMMANDS
 	CMD_DIV          = MASK_ALU  | 0x0007,				/* 01000000 00000111 */
 	CMD_DIVR         = MASK_REAL | CMD_DIV,  			/* 11000000 00000111 */
 	CMD_FSQRT        = MASK_REAL | MASK_ALU | 0x0008, 	/* 11000000 00001000 */
-	CMD_RTI          = 0x0009,                          /* 00000000 00001001 */
-	CMD_ITR          = 0x000A,                          /* 00000000 00001010 */
 	CMD_IN			 = 0x000B,							/* 00000000 00001011 */
 	CMD_INR          = MASK_REAL | CMD_IN, 				/* 10000000 00001011 */
-	/*CMD_GET 		 = 0x000C,*/						/* 00000000 00001100 */
 	CMD_OUT          = 0x000D,							/* 00000000 00001101 */
 	CMD_OUTR         = MASK_REAL | CMD_OUT, 			/* 10000000 00001101 */
-	/*CMD_PUT        = 0x000E,*/						/* 00000000 00001110 */
 	CMD_JMP          = MASK_JMP  | 0x000F,  			/* 00000100 00001111 */
 	CMD_JE 		     = MASK_JMP  | MASK_ALU | 0x0010,	/* 01000100 00010000 */
 	CMD_JER          = MASK_REAL | CMD_JE,				/* 11000100 00010000 */
 	CMD_JNE          = MASK_JMP  | MASK_ALU | 0x0011,	/* 01000100 00010001 */
 	CMD_JNER         = MASK_REAL | CMD_JNE,  			/* 11000100 00010001 */
-	CMD_JB           = MASK_JMP  | MASK_ALU | 0x0012,   /* 01000100 00010010 */
-	CMD_JBR          = MASK_REAL | CMD_JB, 				/* 11000100 00010010 */
-	CMD_JBE			 = MASK_JMP  | MASK_ALU | 0x0013, 	/* 01000100 00010011 */
-	CMD_JBER         = MASK_REAL | CMD_JBE, 			/* 11000100 00010011 */
-	CMD_JA           = MASK_JMP  | MASK_ALU | 0x0014, 	/* 01000100 00010100 */
-	CMD_JAR          = MASK_REAL | CMD_JA,				/* 11000100 00010100 */
-	CMD_JAE          = MASK_JMP  | MASK_ALU | 0x0015,  	/* 01000100 00010101 */
-	CMD_JAER         = MASK_REAL | CMD_JAE, 			/* 11000100 00010101 */
+	CMD_JL           = MASK_JMP  | MASK_ALU | 0x0012,   /* 01000100 00010010 */
+	CMD_JLR          = MASK_REAL | CMD_JL, 				/* 11000100 00010010 */
+	CMD_JLE			 = MASK_JMP  | MASK_ALU | 0x0013, 	/* 01000100 00010011 */
+	CMD_JLER         = MASK_REAL | CMD_JLE, 			/* 11000100 00010011 */
+	CMD_JG           = MASK_JMP  | MASK_ALU | 0x0014, 	/* 01000100 00010100 */
+	CMD_JGR          = MASK_REAL | CMD_JG,				/* 11000100 00010100 */
+	CMD_JGE          = MASK_JMP  | MASK_ALU | 0x0015,  	/* 01000100 00010101 */
+	CMD_JGER         = MASK_REAL | CMD_JGE, 			/* 11000100 00010101 */
 	CMD_CALL         = MASK_JMP  | 0x0016, 				/* 00000100 00010110 */
 	CMD_RET          = 0x0017,							/* 00000000 00010111 */
 	CMD_NOP          = 0x0018, 						    /* 00000000 00011000 */

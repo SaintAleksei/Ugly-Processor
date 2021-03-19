@@ -9,7 +9,7 @@
 func:
 	push r1	
 	push 1
-	ja continue
+	jg continue
 	ret
 continue:
 	push r2

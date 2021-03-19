@@ -264,3 +264,11 @@ int __stack_errcount (stack stk)
 
 	return stk->errcount;
 }
+
+size_t stack_size (stack stk)
+{
+	if (!stk)
+		return 0;
+	else
+		return stk->size;
+}

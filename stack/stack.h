@@ -21,6 +21,8 @@
 	size_t __stack_elemsize    (stack stk);
 	int    __stack_errcount    (stack stk);
 
+	size_t stack_size      (stack stk);
+
 #endif
 
 #ifdef TYPE
@@ -32,7 +34,7 @@ stack OVERLOAD (stack_ctor) (size_t capacity)
 {
 	if (!capacity)
 	{
-		fprintf (stderr, "stack_ctor: bad arguments\n");
+		fprintf (stderr, "STACK: STACK_CTOR: [ERROR]: Bad arguments\n");
 		return NULL;
 	}
 
@@ -40,7 +42,7 @@ stack OVERLOAD (stack_ctor) (size_t capacity)
 
 	if (__stack_ctor  (stk, capacity, sizeof (TYPE) ) )
 	{
-		fprintf (stderr, "stack_ctor: can't create stack\n");
+		fprintf (stderr, "STACK: STACK_CTOR: [ERROR]: Can't create stack\n");
 		free (stk);
 		return NULL;
 	}
@@ -52,7 +54,7 @@ void OVERLOAD (stack_dtor) (stack *stk)
 {
 	if ( !stk || !(*stk) )
 	{
-		fprintf (stderr, "stack_dtor: bad arguments\n");
+		fprintf (stderr, "STACK(%p): STACK_DTOR: [ERROR]: Bad arguments\n", stk);
 		return;
 	}
 
@@ -62,17 +64,17 @@ void OVERLOAD (stack_dtor) (stack *stk)
 void OVERLOAD (stack_push) (stack stk, TYPE value)
 {
 	char str[128] = "";
-	sprintf (str, "stack_push (%p)", stk);
+	sprintf (str, "STACK(%p): STACK_PUSH: [ERROR]", stk);
 
 	if ( !stk)	
 	{
-		fprintf (stderr, "%s: bad arguments\n", str);
+		fprintf (stderr, "%s: Bad arguments\n", str);
 		return;
 	}
 	
 	if (__stack_errcount (stk) )	
 	{
-		fprintf (stderr, "%s: stack has errors\n", str);
+		fprintf (stderr, "%s: Stack has errors\n", str);
 		return;
 	}
 
@@ -85,22 +87,22 @@ void OVERLOAD (stack_push) (stack stk, TYPE value)
 
 	if (__stack_elemsize (stk) != sizeof (TYPE) )
 	{
-		fprintf (stderr, "%s: bad type of value\n", str);
+		fprintf (stderr, "%s: Bad type of value\n", str);
 		return;
 	}	
 	
 	if (__stack_push (stk, &value) )	
-		fprintf (stderr, "%s: can't push value in stack\n", str);
+		fprintf (stderr, "%s: Can't push value in stack\n", str);
 }
 
 void OVERLOAD (stack_pop) (stack stk, TYPE *value)
 {
 	char str[128] = "";
-	sprintf (str, "stack_pop (%p)", stk);
+	sprintf (str, "STACK(%p): STACK_PUSH: [ERROR]", stk);
 
 	if ( !stk)	
 	{
-		fprintf (stderr, "%s: bad arguments\n", str);
+		fprintf (stderr, "%s: Bad arguments\n", str);
 		return;
 	}
 	
@@ -112,25 +114,25 @@ void OVERLOAD (stack_pop) (stack stk, TYPE *value)
 
 	if (__stack_check (stk) )
 	{
-		fprintf (stderr, "%s: stack_check found %d errors\n", str,  __stack_errcount (stk) );
+		fprintf (stderr, "%s: Stack_check found %d errors\n", str,  __stack_errcount (stk) );
 
 		return;
 	}
 
 	if (__stack_elemsize (stk) != sizeof (TYPE) )
 	{
-		fprintf (stderr, "%s: bad type of value\n", str);
+		fprintf (stderr, "%s: Bad type of value\n", str);
 		return;
 	}	
 
-	if (__stack_is_empty (stk) ) 
+	if (stack_size (stk) == 0) 
 	{
-		fprintf (stderr, "%s: stack is empty\n", str);
+		fprintf (stderr, "%s: Stack is empty\n", str);
 		return;
 	}
 
 	if (__stack_pop (stk, value) )
-		fprintf (stderr, "%s: can't pop value from stack\n", str);
+		fprintf (stderr, "%s: Can't pop value from stack\n", str);
 } 
 
 #undef CONCAT

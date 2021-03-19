@@ -84,36 +84,36 @@ char *decode_cmd (char *dest, cmd_t cmd)
 			strncpy (dest, "jner <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JB:
-			strncpy (dest, "jb <addr>", MAX_NAME_SIZE);
+		case CMD_JL:
+			strncpy (dest, "jl <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JBR:
-			strncpy (dest, "jbr <addr>", MAX_NAME_SIZE);
+		case CMD_JLR:
+			strncpy (dest, "jlr <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JBE:
-			strncpy (dest, "jbe <addr>", MAX_NAME_SIZE);
+		case CMD_JLE:
+			strncpy (dest, "jle <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JBER:
-			strncpy (dest, "jber <addr>", MAX_NAME_SIZE);
+		case CMD_JLER:
+			strncpy (dest, "jler <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JA:
-			strncpy (dest, "ja <addr>", MAX_NAME_SIZE);
+		case CMD_JG:
+			strncpy (dest, "jg <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JAR:
-			strncpy (dest, "jar <addr>", MAX_NAME_SIZE);
+		case CMD_JGR:
+			strncpy (dest, "jgr <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JAE:
-			strncpy (dest, "jae <addr>", MAX_NAME_SIZE);
+		case CMD_JGE:
+			strncpy (dest, "jge <addr>", MAX_NAME_SIZE);
 			break;
 
-		case CMD_JAER:
-			strncpy (dest, "jaer <addr>", MAX_NAME_SIZE);
+		case CMD_JGER:
+			strncpy (dest, "jger <addr>", MAX_NAME_SIZE);
 			break;
 
 		case CMD_HLT:
@@ -154,14 +154,6 @@ char *decode_cmd (char *dest, cmd_t cmd)
 
 		case CMD_FSQRT:
 			strncpy (dest, "fsqrt", MAX_NAME_SIZE);
-			break;
-
-		case CMD_RTI:
-			strncpy (dest, "rti", MAX_NAME_SIZE);
-			break;
-
-		case CMD_ITR:	
-			strncpy (dest, "itr", MAX_NAME_SIZE);
 			break;
 
 		case CMD_IN:

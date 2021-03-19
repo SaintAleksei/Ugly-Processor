@@ -16,7 +16,7 @@ NEXT:
 	push r1
 	push r1
 	mul
-	jb PRIME	
+	jl PRIME	
 	push r0
 	push r1
 	div
